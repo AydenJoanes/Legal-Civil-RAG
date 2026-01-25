@@ -9,6 +9,6 @@ Design Pattern: Builder
 - Allows step-by-step prompt building
 - Supports multiple prompt formats/styles
 """
-from .prompt_builder import PromptBuilder, RAGPromptBuilder
+from .prompt_builder import PromptBuilder, RAGPromptBuilder, ConstructionLegalPromptBuilder
 
-__all__ = ["PromptBuilder", "RAGPromptBuilder"]
+__all__ = ["PromptBuilder", "RAGPromptBuilder", "ConstructionLegalPromptBuilder"]

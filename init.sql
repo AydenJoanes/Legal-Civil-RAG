@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     embedding vector(384),
     tag VARCHAR(255),
     page_number INTEGER,
-    chunk_id VARCHAR(255)
+    chunk_id VARCHAR(255),
+    source VARCHAR(255)
 );
 
 -- Create index for faster similarity search

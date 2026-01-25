@@ -73,8 +73,8 @@ class PostgresVectorStore(IVectorStore):
                 cur.execute(
                     """
                     INSERT INTO document_chunks
-                    (content, embedding, tag, page_number, chunk_id)
-                    VALUES (%s, %s, %s, %s, %s)
+                    (content, embedding, tag, page_number, chunk_id, source)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     """,
                     (
                         r["text"],
@@ -82,6 +82,7 @@ class PostgresVectorStore(IVectorStore):
                         r["metadata"].get("tag"),
                         r["metadata"].get("page"),
                         r["metadata"].get("chunk_id"),
+                        r["metadata"].get("source"),
                     ),
                 )
             
@@ -130,7 +131,7 @@ class PostgresVectorStore(IVectorStore):
                 if tag:
                     cur.execute(
                         """
-                        SELECT content, tag, page_number, chunk_id
+                        SELECT content, tag, page_number, chunk_id, source
                         FROM document_chunks
                         WHERE tag = %s
                         ORDER BY page_number, chunk_id
@@ -140,7 +141,7 @@ class PostgresVectorStore(IVectorStore):
                 else:
                     cur.execute(
                         """
-                        SELECT content, tag, page_number, chunk_id
+                        SELECT content, tag, page_number, chunk_id, source
                         FROM document_chunks
                         ORDER BY page_number, chunk_id
                         """
@@ -151,7 +152,7 @@ class PostgresVectorStore(IVectorStore):
                 if tag:
                     cur.execute(
                         """
-                        SELECT content, tag, page_number, chunk_id
+                        SELECT content, tag, page_number, chunk_id, source
                         FROM document_chunks
                         WHERE tag = %s
                         ORDER BY embedding <-> %s::vector
@@ -162,7 +163,7 @@ class PostgresVectorStore(IVectorStore):
                 else:
                     cur.execute(
                         """
-                        SELECT content, tag, page_number, chunk_id
+                        SELECT content, tag, page_number, chunk_id, source
                         FROM document_chunks
                         ORDER BY embedding <-> %s::vector
                         LIMIT %s
@@ -178,6 +179,7 @@ class PostgresVectorStore(IVectorStore):
                     "tag": r[1],
                     "page": r[2],
                     "chunk_id": r[3],
+                    "source": r[4],
                 }
                 for r in rows
             ]

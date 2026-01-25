@@ -370,3 +370,106 @@ class SummarizationPromptBuilder(PromptBuilder):
             {"role": "system", "content": self.build_system_prompt()},
             {"role": "user", "content": self.build_user_prompt()}
         ]
+
+
+class ConstructionLegalPromptBuilder(PromptBuilder):
+    """
+    Concrete Builder for Civil/Construction Legal RAG prompts.
+    
+    Specialized for analyzing construction contracts (FIDIC, NEC, JCT),
+    regulatory compliance, and legal liability.
+    """
+    
+    DEFAULT_INSTRUCTIONS = [
+        "You are a specialized Legal Assistant for Construction and Civil Engineering.",
+        "Your expertise covers FIDIC, NEC, and standard construction contracts.",
+        "When analyzing documents, you MUST:",
+        "1. Identify liability ownership (who is responsible?)",
+        "2. Detect potential delays and associated penalties (Liquidated Damages)",
+        "3. Highlight safety compliance interactions (OSHA, local regulations)",
+        "4. Quote specific clauses exactly from the context.",
+        "Do NOT infer legal advice not present in the text.",
+    ]
+    
+    DEFAULT_CONSTRAINTS = [
+        "Always cite the Clause Number (e.g., 'Clause 12.3') when provided.",
+        "Distinguish between 'Contractor' and 'Employer' obligations clearly.",
+        "If a definition is ambiguous, state: 'The provided text does not define this term explicitly.'",
+    ]
+    
+    def __init__(self, use_defaults: bool = True):
+        super().__init__()
+        
+        if use_defaults:
+            self._components.system_instructions = self.DEFAULT_INSTRUCTIONS.copy()
+            self._components.constraints = self.DEFAULT_CONSTRAINTS.copy()
+            
+    def add_system_instruction(self, instruction: str) -> "ConstructionLegalPromptBuilder":
+        self._components.system_instructions.append(instruction)
+        return self
+    
+    def add_context(self, context: str, label: str = "Legal Document") -> "ConstructionLegalPromptBuilder":
+        self._components.context_sections.append({
+            "label": label,
+            "content": context
+        })
+        return self
+    
+    def set_query(self, query: str) -> "ConstructionLegalPromptBuilder":
+        self._components.user_query = query
+        return self
+    
+    def add_example(self, question: str, answer: str) -> "ConstructionLegalPromptBuilder":
+        self._components.examples.append({
+            "question": question,
+            "answer": answer
+        })
+        return self
+    
+    def add_constraint(self, constraint: str) -> "ConstructionLegalPromptBuilder":
+        self._components.constraints.append(constraint)
+        return self
+    
+    def set_output_format(self, format_desc: str) -> "ConstructionLegalPromptBuilder":
+        self._components.output_format = format_desc
+        return self
+    
+    def build_system_prompt(self) -> str:
+        parts = []
+        
+        if self._components.system_instructions:
+            instructions = "\\n".join(f"- {inst}" for inst in self._components.system_instructions)
+            parts.append(f"ROLE & RULES:\\n{instructions}")
+        
+        if self._components.constraints:
+            constraints = "\\n".join(f"- {c}" for c in self._components.constraints)
+            parts.append(f"\\nLEGAL CONSTRAINTS:\\n{constraints}")
+        
+        if self._components.output_format:
+            parts.append(f"\\nREQUIRED FORMAT: {self._components.output_format}")
+        
+        return "\\n".join(parts)
+    
+    def build_user_prompt(self) -> str:
+        parts = []
+        
+        for ctx in self._components.context_sections:
+            parts.append(f"DOCUMENT SEGMENT ({ctx['label']}):\\n{ctx['content']}")
+        
+        if self._components.examples:
+            examples_text = "\\n\\nPRECEDENT EXAMPLES:"
+            for ex in self._components.examples:
+                examples_text += f"\\nQuery: {ex['question']}\\nAnalysis: {ex['answer']}"
+            parts.append(examples_text)
+        
+        if self._components.user_query:
+            parts.append(f"\\nLEGAL QUERY:\\n{self._components.user_query}")
+            parts.append("\\nANALYSIS:")
+        
+        return "\\n\\n".join(parts)
+    
+    def build_messages(self) -> List[Dict[str, str]]:
+        return [
+            {"role": "system", "content": self.build_system_prompt()},
+            {"role": "user", "content": self.build_user_prompt()}
+        ]

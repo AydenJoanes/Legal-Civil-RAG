@@ -16,7 +16,8 @@ from app.domain.interfaces import IEmbedder, IVectorStore, IDocumentLoader, IChu
 from app.infrastructure.embedders import get_embedder
 from app.infrastructure.persistence import PostgresVectorStore
 from app.infrastructure.document_loaders import DocumentLoaderFactory
-from app.infrastructure.chunkers import FixedSizeChunker
+from app.infrastructure.chunkers import FixedSizeChunker, SemanticChunker
+from app.services.tag_inference import infer_tag_from_text
 from app.core.logging import logger
 
 
@@ -47,7 +48,8 @@ class IngestService:
         """
         self._embedder = embedder or get_embedder()
         self._vector_store = vector_store or PostgresVectorStore()
-        self._chunker = chunker or FixedSizeChunker(chunk_size=500, overlap=50)
+        # Default to SemanticChunker for legal documents (better context preservation)
+        self._chunker = chunker or SemanticChunker(target_chunk_size=1000, overlap_sentences=2)
         
         logger.debug("IngestService initialized with dependencies")
     
@@ -91,9 +93,18 @@ class IngestService:
         pages = loader.load(file_bytes, filename=filename)
         logger.info(f"Extracted {len(pages)} pages from document")
         
+        
         # 3. Process pages: chunk + embed
         records = []
         total_chunks = 0
+        
+        # Auto-infer tag if not provided
+        if not tag and pages:
+            # Use content of first page for inference
+            # Ideally we might scan more, but first page usually has headers/titles
+            first_page_text = pages[0]["text"]
+            tag = infer_tag_from_text(first_page_text) or "OTHERS"
+            logger.info(f"Auto-inferred tag: {tag}")
         
         for page in pages:
             # Chunk the page text (Strategy Pattern)
@@ -112,7 +123,8 @@ class IngestService:
                     "metadata": {
                         "tag": tag,
                         "page": chunk["page"],
-                        "chunk_id": chunk["chunk_id"]
+                        "chunk_id": chunk["chunk_id"],
+                        "source": filename
                     }
                 })
                 total_chunks += 1

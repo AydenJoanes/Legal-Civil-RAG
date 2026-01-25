@@ -5,6 +5,9 @@ python-dotenv
 loguru
 
 pypdf
+pymupdf4llm
+pytesseract
+pdf2image
 sentence-transformers
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch

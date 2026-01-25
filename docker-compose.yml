@@ -21,6 +21,7 @@ services:
   # FastAPI Application
   app:
     build: .
+    image: rag_fastapi_civil:latest # Distinct image name for the new version
     container_name: rag_app
     ports:
       - "8000:8000"

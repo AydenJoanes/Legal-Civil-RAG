@@ -15,7 +15,7 @@ SOLID Principles:
 from typing import Dict, Any, Optional
 
 from app.domain.interfaces import ILLMProvider
-from app.domain.builders import RAGPromptBuilder, PromptBuilder
+from app.domain.builders import RAGPromptBuilder, PromptBuilder, ConstructionLegalPromptBuilder
 from app.infrastructure.llm_providers import get_llm_provider
 from app.application.retrieval_service import RetrievalService
 from app.services.tag_inference import infer_tag_from_text
@@ -49,7 +49,7 @@ class ChatService:
         """
         self._llm_provider = llm_provider or get_llm_provider()
         self._retrieval_service = retrieval_service or RetrievalService()
-        self._prompt_builder = prompt_builder or RAGPromptBuilder()
+        self._prompt_builder = prompt_builder or ConstructionLegalPromptBuilder()
         
         logger.debug("ChatService initialized with dependencies")
     
