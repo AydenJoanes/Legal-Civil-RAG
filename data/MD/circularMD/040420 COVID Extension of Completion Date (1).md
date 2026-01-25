@@ -1,0 +1,97 @@
+> [!NOTE]
+> This file was converted using OCR (Tesseract).
+
+
+## Page 1
+
+2S Karnataka Real Estate Regulatory Authority
+#14. Ground Floor, Silver Jubilee Block, Unity Bui ‘SI Compound,
+oad, Bengaluru - 56002
+
+KRera No.Sec.CR.04/2019-20 Date: 04-04-2020
+CIRCULAR
+
+World Health organisation(WHO) on March 11 2020, has declared
+Novel Corona Virus(COVID)-19 as a Pandemic and called for the countries to
+take immediate action to save human lives.
+
+On 23.03.2020, Government of Karnataka by way of precaution and to
+stop this contagious virus from further spreading has been declared
+controlled lockdowns up to April 1s, 2020.
+
+Subsequently on 24.03.2020 the Government of India has been declared
+for complete lockdown of the entire country for Twenty-One days (ie. until
+14.04.2020) allowing only operation of select essential services. In view of
+these partial lockdowns / recent complete lock down, the progress of the real
+estate projects registered with the Karnataka Real Estate Regulatory
+Authority(KRERA) has been severely affected.
+
+On account of imposition of lock down in India for 21 days i.e. up to
+14.4.2020 all complaint cases listed for hearing up to 14.4.2020 before the
+Karnataka Real Estate Regulatory Authority and the Adjudicating Officer,
+KRERA, need to be adjourned.
+
+Due to the aforesaid lockdowns, the supply chains for obtaining
+construction materials have been disrupted and the Labour workforce may
+have migrated back to their home states. Under these circumstances, Real
+estate projects across Karnataka will take some time to restart work.
+
+Further, while granting registration/extension under Section 5, 6, 7(3)
+of the Real Estate (Regulation and Development) Act or Rule 7 of Karnataka
+Real Estate (Regulation and development) Rules framed thereunder, the
+Authority has to take into consideration reasons and circumstances that
+influence the duration for completion of projects. And these sections are to be
+read with Section 34(f) of the Act, wherein the Authority is required to ensure
+
+9. § i howe
+
+Tel : 080 — 22249798/22249799 e-mail : rera.undersecretary@gmail.com Web: rera.karnataka.g
+
+Scanned by CamScanner
+
+
+## Page 2
+
+3" Cross, Mission Road, Bengaluru ~ 560027 eres
+
+og Karnataka Real Estate Regulatory Authority (sh dy)
+\ é 41/4, Ground Floor, Silver Jubilee Block, Unity Building, CSE Compound, Go
+
+compliance of the obligations cast upon the promoters, the allottees and real
+estate agents,
+
+Recognizing this, RBI has also allowed banks to provide a three month
+moratorium on fixed term loans and EMI payments and in order to aid
+government efforts in controlling the damage of COVID-19 and ensure that
+completion of KRERA registered projects does not get adversely affected.
+
+Therefore, the Authority has been decided that,
+
+a) For all KRERA Registered projects where completion date, revised
+completion date or extended completion date expires on or after 15th
+March 2020, the period of validity for registration of such projects shall
+be extended by three months. KRERA shall accordingly issue project
+registration certificates, with revised timelines for such projects, at the
+earliest.
+
+b) The time limits of all statutory compliances in accordance with the Real
+Estate (Regulation and Development) Act, 2016 and the rules and
+regulations made thereunder, which were due in March / April / May
+are extended to 30th June 2020.
+
+c) All complaint cases listed for hearing upto 14.4.2020 before the
+Karnataka Real Estate Regulatory Authority and the Adjudicating
+Officer, KRERA, have been adjourned except cases urgent in nature to
+avoid gathering of litigants/lawyers/visitors. Next dates of hearing in
+each case will be posted on the website of the Authority.
+
+(As approved by the Authority) 4 \
+| 4, &e eagith wnat)
+
+Karnataka Real Estate Regulatory
+Authority
+
+Tel : 080 —22249798/22249799 e-mail : rera.undersecretary@gmail.com Web: rera.karnataka.g
+
+/ Scanned by CamScanner
+
