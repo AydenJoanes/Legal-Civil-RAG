@@ -14,6 +14,7 @@ from typing import List, Dict, Any, Optional
 from app.domain.interfaces import IEmbedder, IVectorStore
 from app.infrastructure.embedders import get_embedder
 from app.infrastructure.persistence import PostgresVectorStore
+from app.infrastructure.rerankers.cross_encoder_reranker import CrossEncoderReranker
 from app.core.logging import logger
 
 
@@ -40,6 +41,8 @@ class RetrievalService:
         """
         self._embedder = embedder or get_embedder()
         self._vector_store = vector_store or PostgresVectorStore()
+        # Initialize reranker
+        self._reranker = CrossEncoderReranker()
         
         logger.debug("RetrievalService initialized with dependencies")
     
@@ -85,12 +88,22 @@ class RetrievalService:
         # Semantic search
         query_embedding = self._embedder.embed_text(query)
         
-        results = self._vector_store.search(
+        # 1. Retrieval Phase: Fetch more candidates (e.g., 3x top_k) for reranking
+        initial_top_k = top_k * 3
+        candidates = self._vector_store.search(
             query_embedding=query_embedding,
             tag=tag,
+            top_k=initial_top_k
+        )
+        logger.info(f"Initial retrieval found {len(candidates)} candidates")
+        
+        # 2. Reranking Phase: Use Cross-Encoder to re-score
+        results = self._reranker.rank(
+            query=query,
+            documents=candidates,
             top_k=top_k
         )
-        logger.info(f"Semantic search returned {len(results)} results")
+        logger.info(f"Reranked to top {len(results)} results")
         
         return {
             "query": query,

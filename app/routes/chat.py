@@ -25,7 +25,8 @@ chat_service = ChatService()
 def chat(
     message: str,
     tag: Optional[str] = None,
-    top_k: int = 5
+    top_k: int = 10,
+    lang: str = "en"
 ):
     """
     Process a chat message with RAG.
@@ -34,14 +35,21 @@ def chat(
     - Receives request parameters
     - Delegates to ChatService (Facade)
     - Returns response
+    
+    Args:
+        message: User's question
+        tag: Optional tag filter
+        top_k: Number of context chunks
+        lang: Target language ('en', 'kn' for Kannada, 'hi' for Hindi)
     """
-    logger.info(f"Chat request: {message[:50]}...")
+    logger.info(f"Chat request: {message[:50]}... (lang={lang})")
     
     # Delegate to service (Facade Pattern)
     result = chat_service.chat(
         message=message,
         tag=tag,
-        top_k=top_k
+        top_k=top_k,
+        target_language=lang
     )
     
     return result

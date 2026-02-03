@@ -19,6 +19,7 @@ from app.domain.builders import RAGPromptBuilder, PromptBuilder, ConstructionLeg
 from app.infrastructure.llm_providers import get_llm_provider
 from app.application.retrieval_service import RetrievalService
 from app.services.tag_inference import infer_tag_from_text
+from app.services.translation_service import translate_text, is_supported_language
 from app.core.logging import logger
 
 
@@ -57,7 +58,9 @@ class ChatService:
         self,
         message: str,
         tag: Optional[str] = None,
-        top_k: int = 5
+        top_k: int = 5,
+        include_sources: bool = True,
+        target_language: str = "en"
     ) -> Dict[str, Any]:
         """
         Process a chat message with RAG.
@@ -67,14 +70,17 @@ class ChatService:
         2. Context retrieval
         3. Prompt building (Builder Pattern)
         4. LLM answer generation
+        5. Translation (if target language is not English)
         
         Args:
             message: User's question/message
             tag: Optional explicit tag (otherwise inferred)
             top_k: Number of context chunks to retrieve
+            include_sources: Whether to include source documents in response
+            target_language: Target language code ('en', 'kn', 'hi')
             
         Returns:
-            Dict with message, tag, and answer
+            Dict with message, tag, answer, language, and optionally sources
         """
         logger.info(f"Chat request: {message[:50]}...")
         
@@ -89,11 +95,34 @@ class ChatService:
             query_for_retrieval = message
         
         # 3. Retrieve context using RetrievalService
-        context = self._retrieval_service.get_context(
+        # CRITICAL FIX: We pass tag=None to search ALL documents.
+        # Auto-inferred tags (e.g. "GUIDELINES") were filtering out valid docs (e.g. "FORMS").
+        # We rely on the Reranker to pick the best results from the global pool.
+        retrieval_result = self._retrieval_service.retrieve(
             query=query_for_retrieval,
-            tag=inferred_tag,
+            tag=None, 
             top_k=top_k
         )
+        
+        results = retrieval_result.get("results", [])
+        context = "\n\n".join([r["content"] for r in results]) if results else ""
+        
+        # Fallback: If tagged search yields poor results, try untagged
+        if (not context or len(context) < 200) and inferred_tag:
+            logger.info(f"Tagged search ({inferred_tag}) yielded poor context. Retrying without tag...")
+            fallback_result = self._retrieval_service.retrieve(
+                query=query_for_retrieval,
+                tag=None,
+                top_k=top_k
+            )
+            
+            fallback_results = fallback_result.get("results", [])
+            if fallback_results:
+                logger.info("Fallback search successful. Using untagged context.")
+                results = fallback_results
+                context = "\n\n".join([r["content"] for r in results])
+                inferred_tag = None 
+                
         logger.debug(f"Retrieved context: {len(context)} chars")
         
         # 4. Build prompt using Builder Pattern
@@ -109,11 +138,33 @@ class ChatService:
         answer = self._llm_provider.chat(messages)
         logger.success(f"Generated response for: {message[:30]}...")
         
-        return {
+        # 6. Translate answer if target language is not English
+        if target_language and target_language != "en" and is_supported_language(target_language):
+            logger.info(f"Translating answer to {target_language}...")
+            answer = translate_text(answer, target_language, self._llm_provider)
+        
+        # 7. Build response
+        response = {
             "message": message,
             "inferred_tag": inferred_tag,
-            "answer": answer
+            "answer": answer,
+            "language": target_language
         }
+        
+        # 7. Include sources if requested
+        if include_sources and results:
+            response["sources"] = [
+                {
+                    "filename": r.get("source_file") or r.get("metadata", {}).get("filename", "Document"),
+                    "page": r.get("page") or r.get("metadata", {}).get("page"),
+                    "tag": r.get("tag"),
+                    "excerpt": r.get("content", "")[:300] + "..." if len(r.get("content", "")) > 300 else r.get("content", ""),
+                    "score": r.get("score")
+                }
+                for r in results
+            ]
+        
+        return response
     
     def chat_with_builder(
         self,

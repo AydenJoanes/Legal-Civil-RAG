@@ -4,14 +4,11 @@ import sys
 
 # Configuration
 API_URL = "http://localhost:8000/ingest/"
-# DEFAULT PDF FOLDER - Change this if your PDFs are elsewhere
-PDF_FOLDER = r"c:/Users/joane/OneDrive/Desktop/Sem 8/FastAPI3/PDF/Notifications" 
+# Default to the data directory in the current project
+DEFAULT_FOLDER = os.path.join(os.getcwd(), "data")
 
-# If you have multiple folders, you can list them or change the path above
-# For now I will point to one of the folders I saw in your file structure earlier
-
-def ingest_pdfs():
-    target_folder = PDF_FOLDER
+def ingest_documents():
+    target_folder = DEFAULT_FOLDER
     # Allow overriding via command line arg
     if len(sys.argv) > 1:
         target_folder = sys.argv[1]
@@ -20,24 +17,37 @@ def ingest_pdfs():
         print(f"Error: Folder '{target_folder}' not found.")
         return
 
-    files = [f for f in os.listdir(target_folder) if f.lower().endswith(".pdf")]
+    print(f"Scanning for documents in '{target_folder}'...")
+
+    supported_extensions = ('.pdf', '.md')
+    files_to_ingest = []
+
+    # Recursive search
+    for root, dirs, files in os.walk(target_folder):
+        for file in files:
+            if file.lower().endswith(supported_extensions):
+                files_to_ingest.append(os.path.join(root, file))
     
-    if not files:
-        print(f"No PDF files found in '{target_folder}'.")
+    if not files_to_ingest:
+        print(f"No supported files {supported_extensions} found in '{target_folder}'.")
         return
 
-    print(f"Found {len(files)} PDFs in {target_folder}. Starting ingestion...")
+    print(f"Found {len(files_to_ingest)} documents. Starting ingestion...")
 
-    for filename in files:
-        file_path = os.path.join(target_folder, filename)
+    for file_path in files_to_ingest:
+        filename = os.path.basename(file_path)
         
         try:
             with open(file_path, "rb") as f:
                 print(f"Ingesting: {filename}...")
-                # We send empty tag so the backend infers it
+                
+                # Determine content type (optional, requests handles it usually but good to be explicit if needed)
+                content_type = "application/pdf" if filename.lower().endswith(".pdf") else "text/markdown"
+                
+                # We send empty tag so the backend infers it or leaves it null
                 response = requests.post(
                     API_URL, 
-                    files={"file": (filename, f, "application/pdf")},
+                    files={"file": (filename, f, content_type)},
                     data={"tag": ""} 
                 )
                 
@@ -50,4 +60,4 @@ def ingest_pdfs():
             print(f"❌ Error processing {filename}: {e}")
 
 if __name__ == "__main__":
-    ingest_pdfs()
+    ingest_documents()

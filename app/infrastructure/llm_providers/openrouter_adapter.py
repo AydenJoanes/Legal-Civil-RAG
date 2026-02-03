@@ -74,7 +74,7 @@ class OpenRouterAdapter(ILLMProvider):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "mistralai/mistral-7b-instruct",
+        model: str = "meta-llama/llama-3.3-70b-instruct:free",
         base_url: str = "https://openrouter.ai/api/v1/chat/completions"
     ):
         """
