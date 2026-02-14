@@ -18,6 +18,7 @@ from typing import Dict, Type, Optional
 from app.domain.interfaces.document_loader import IDocumentLoader
 from app.infrastructure.document_loaders.pdf_loader import PDFLoader
 from app.infrastructure.document_loaders.markdown_pdf_loader import MarkdownPDFLoader
+from app.infrastructure.document_loaders.markdown_loader import MarkdownLoader
 from app.core.logging import logger
 
 
@@ -42,6 +43,7 @@ class DocumentLoaderFactory:
         """Register default loaders if registry is empty"""
         if not cls._loaders:
             cls.register(".pdf", MarkdownPDFLoader)
+            cls.register(".md", MarkdownLoader)
     
     @classmethod
     def register(cls, extension: str, loader_class: Type[IDocumentLoader]) -> None:

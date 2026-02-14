@@ -2,5 +2,6 @@
 from app.infrastructure.document_loaders.loader_factory import DocumentLoaderFactory
 from app.infrastructure.document_loaders.pdf_loader import PDFLoader
 from app.infrastructure.document_loaders.markdown_pdf_loader import MarkdownPDFLoader
+from app.infrastructure.document_loaders.markdown_loader import MarkdownLoader
 
-__all__ = ["DocumentLoaderFactory", "PDFLoader", "MarkdownPDFLoader"]
+__all__ = ["DocumentLoaderFactory", "PDFLoader", "MarkdownPDFLoader", "MarkdownLoader"]
