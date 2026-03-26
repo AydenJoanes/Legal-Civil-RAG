@@ -117,6 +117,10 @@ class RAGPromptBuilder(PromptBuilder):
         "If the answer is not present in the context, say: \"The document does not contain this information.\"",
         "Be concise and clear.",
         "Summarize information instead of copying raw text.",
+        "For fees, percentages, amounts, dates, and section references, return exact values from context.",
+        "If asked for a reference number, include the associated date too when present in context.",
+        "Do not mix similarly named authorities (for example, K-RERA and K-REAT).",
+        "Prefer evidence from context sections that have the strongest keyword overlap with the question.",
     ]
     
     DEFAULT_CONSTRAINTS = [

@@ -1,22 +1,16 @@
 """
-OpenRouter LLM Adapter - Adapter Pattern Implementation
+Gemini LLM Adapter - Adapter Pattern Implementation
+
+Uses Google Gemini's native REST API (generateContent endpoint).
 
 Design Pattern: Adapter Pattern
-- Adapts OpenRouter API to our ILLMProvider interface
-- Allows easy swapping of LLM providers without changing client code
+- Adapts Gemini API to our ILLMProvider interface
 
 SOLID Principles:
-- SRP: Only handles OpenRouter API communication
+- SRP: Only handles Gemini API communication
 - OCP: New providers can be added without modifying this class
 - LSP: Can replace any ILLMProvider implementation
-- ISP: Implements focused interface methods
 - DIP: Depends on ILLMProvider abstraction
-
-Exception Handling:
-- Timeout → LLMConnectionError
-- Rate limit (429) → LLMRateLimitError  
-- Auth error (401/403) → LLMAuthenticationError
-- Empty response → LLMResponseError
 """
 import os
 import threading
@@ -38,14 +32,13 @@ load_dotenv()
 
 class OpenRouterAdapter(ILLMProvider):
     """
-    Adapter for OpenRouter API.
-    
+    Adapter for Google Gemini API (native REST endpoint).
     Implements Singleton pattern for resource efficiency.
-    Adapts OpenRouter's API to our ILLMProvider interface.
     """
     
     _instance: Optional["OpenRouterAdapter"] = None
     _lock: threading.Lock = threading.Lock()
+    DEFAULT_MODEL = "gemini-2.5-flash"
     
     # Default system prompt for RAG
     DEFAULT_SYSTEM_PROMPT = (
@@ -74,32 +67,50 @@ class OpenRouterAdapter(ILLMProvider):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "mistralai/mistral-7b-instruct",
-        base_url: str = "https://openrouter.ai/api/v1/chat/completions"
+        model: Optional[str] = None,
     ):
-        """
-        Initialize OpenRouter adapter.
-        
-        Args:
-            api_key: OpenRouter API key (defaults to env var)
-            model: Model identifier
-            base_url: API endpoint URL
-        """
         # Prevent re-initialization in Singleton
         if hasattr(self, "_initialized") and self._initialized:
             return
             
-        self._api_key = api_key or os.getenv("OPENROUTER_API_KEY")
-        self._model = model
-        self._base_url = base_url
+        self._api_key = api_key or os.getenv("GEMINI_API_KEY")
+        self._model = model or os.getenv("GEMINI_MODEL") or self.DEFAULT_MODEL
+        self._base_url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self._model}:generateContent"
+        )
         self._initialized = True
         
-        logger.info(f"OpenRouterAdapter initialized with model: {model}")
+        logger.info(f"GeminiAdapter initialized with model: {self._model}")
     
     @property
     def model_name(self) -> str:
-        """Return the model identifier"""
         return self._model
+    
+    def _convert_messages_to_gemini_format(
+        self, messages: List[Dict[str, str]]
+    ) -> tuple:
+        """
+        Convert OpenAI-style messages to Gemini's native format.
+        
+        Returns:
+            (system_instruction, contents) tuple
+        """
+        system_text = None
+        contents = []
+        
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            
+            if role == "system":
+                system_text = content
+            elif role == "user":
+                contents.append({"role": "user", "parts": [{"text": content}]})
+            elif role == "assistant":
+                contents.append({"role": "model", "parts": [{"text": content}]})
+        
+        return system_text, contents
     
     def generate(
         self,
@@ -108,25 +119,10 @@ class OpenRouterAdapter(ILLMProvider):
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
     ) -> str:
-        """
-        Generate text completion using OpenRouter.
-        
-        Args:
-            prompt: User prompt/question
-            system_prompt: Optional system instructions
-            temperature: Sampling temperature (0-1)
-            max_tokens: Maximum tokens to generate
-            
-        Returns:
-            Generated text response
-        """
         messages = []
-        
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-        
         messages.append({"role": "user", "content": prompt})
-        
         return self.chat(messages, temperature, max_tokens)
     
     def chat(
@@ -135,97 +131,92 @@ class OpenRouterAdapter(ILLMProvider):
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
     ) -> str:
-        """
-        Multi-turn chat completion using OpenRouter.
-        
-        Args:
-            messages: List of {"role": "user/assistant/system", "content": "..."}
-            temperature: Sampling temperature (0-1)
-            max_tokens: Maximum tokens to generate
-            
-        Returns:
-            Generated response
-            
-        Raises:
-            LLMAuthenticationError: If API key is invalid
-            LLMRateLimitError: If rate limit exceeded
-            LLMConnectionError: If API is unreachable or timeout
-            LLMResponseError: If response is empty or malformed
-        """
-        # Edge case: No API key
         if not self._api_key:
-            logger.error("OpenRouter API key not configured")
+            logger.error("Gemini API key not configured")
             raise LLMAuthenticationError()
         
-        logger.debug(f"Calling OpenRouter with {len(messages)} messages...")
+        logger.debug(f"Calling Gemini with {len(messages)} messages...")
         
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Content-Type": "application/json",
-        }
+        # Convert messages to Gemini format
+        system_text, contents = self._convert_messages_to_gemini_format(messages)
         
+        # Build payload
         payload = {
-            "model": self._model,
-            "messages": messages,
-            "temperature": temperature,
+            "contents": contents,
+            "generationConfig": {
+                "temperature": temperature,
+            }
         }
+        
+        # Add system instruction if present
+        if system_text:
+            payload["systemInstruction"] = {
+                "parts": [{"text": system_text}]
+            }
         
         if max_tokens:
-            payload["max_tokens"] = max_tokens
+            payload["generationConfig"]["maxOutputTokens"] = max_tokens
+        
+        # API key goes as query parameter for Gemini
+        url = f"{self._base_url}?key={self._api_key}"
         
         try:
             response = requests.post(
-                self._base_url,
-                headers=headers,
+                url,
+                headers={"Content-Type": "application/json"},
                 json=payload,
                 timeout=60
             )
             
-            # Handle specific HTTP errors
             if response.status_code == 401 or response.status_code == 403:
-                logger.error(f"OpenRouter authentication failed: {response.status_code}")
+                logger.error(f"Gemini authentication failed: {response.status_code}")
                 raise LLMAuthenticationError()
             
             if response.status_code == 429:
-                logger.warning("OpenRouter rate limit exceeded")
+                logger.warning("Gemini rate limit exceeded")
                 raise LLMRateLimitError()
             
             response.raise_for_status()
             
-            # Parse response
             data = response.json()
             
-            # Edge case: Empty or malformed response
-            if not data.get("choices"):
-                logger.error(f"OpenRouter returned empty choices: {data}")
-                raise LLMResponseError("No choices in response")
+            # Parse Gemini's native response format
+            candidates = data.get("candidates", [])
+            if not candidates:
+                logger.error(f"Gemini returned no candidates: {data}")
+                raise LLMResponseError("No candidates in response")
             
-            answer = data["choices"][0].get("message", {}).get("content", "")
+            # Extract text from first candidate
+            parts = candidates[0].get("content", {}).get("parts", [])
+            if not parts:
+                logger.error("Gemini returned empty parts")
+                raise LLMResponseError("Empty parts in response")
+            
+            answer = parts[0].get("text", "")
             
             if not answer or not answer.strip():
-                logger.error("OpenRouter returned empty content")
+                logger.error("Gemini returned empty content")
                 raise LLMResponseError("Empty content in response")
             
-            logger.info(f"OpenRouter response received ({len(answer)} chars)")
+            logger.info(f"Gemini response received ({len(answer)} chars)")
             return answer
             
         except (LLMAuthenticationError, LLMRateLimitError, LLMResponseError):
-            # Re-raise our custom exceptions
             raise
         except requests.exceptions.Timeout:
-            logger.error("OpenRouter request timed out")
+            logger.error("Gemini request timed out")
             raise LLMConnectionError("Request timed out after 60 seconds")
         except requests.exceptions.ConnectionError as e:
-            logger.error(f"OpenRouter connection failed: {e}")
+            logger.error(f"Gemini connection failed: {e}")
             raise LLMConnectionError(str(e))
         except requests.exceptions.HTTPError as e:
-            logger.error(f"OpenRouter HTTP error: {e}")
+            logger.error(f"Gemini HTTP error: {e}")
             raise LLMConnectionError(str(e))
         except KeyError as e:
-            logger.error(f"Malformed OpenRouter response: {e}")
+            logger.error(f"Malformed Gemini response: {e}")
             raise LLMResponseError(f"Missing key in response: {e}")
         except Exception as e:
-            logger.error(f"Unexpected OpenRouter error: {e}")
+            logger.error(f"Unexpected Gemini error: {e}")
             raise LLMConnectionError(str(e))
     
     def generate_with_context(
@@ -234,25 +225,12 @@ class OpenRouterAdapter(ILLMProvider):
         question: str,
         system_prompt: Optional[str] = None
     ) -> str:
-        """
-        Convenience method for RAG: Generate answer given context and question.
-        
-        Args:
-            context: Retrieved document context
-            question: User question
-            system_prompt: Optional custom system prompt
-            
-        Returns:
-            Generated answer
-        """
         system = system_prompt or self.DEFAULT_SYSTEM_PROMPT
-        
         prompt = (
             f"Context:\n{context}\n\n"
             f"Question:\n{question}\n\n"
             "Answer:"
         )
-        
         return self.generate(prompt, system_prompt=system)
 
 
@@ -262,17 +240,9 @@ _provider_lock = threading.Lock()
 
 
 def get_llm_provider() -> OpenRouterAdapter:
-    """
-    Get the singleton LLM provider instance.
-    
-    Returns:
-        OpenRouterAdapter singleton instance
-    """
     global _llm_provider
-    
     if _llm_provider is None:
         with _provider_lock:
             if _llm_provider is None:
                 _llm_provider = OpenRouterAdapter()
-    
     return _llm_provider

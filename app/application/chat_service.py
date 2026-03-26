@@ -12,13 +12,13 @@ SOLID Principles:
 - OCP: New prompt styles via different builders
 - DIP: Depends on abstractions (ILLMProvider, RetrievalService, PromptBuilder)
 """
+import re
 from typing import Dict, Any, Optional
 
 from app.domain.interfaces import ILLMProvider
-from app.domain.builders import RAGPromptBuilder, PromptBuilder, ConstructionLegalPromptBuilder
+from app.domain.builders import RAGPromptBuilder, PromptBuilder
 from app.infrastructure.llm_providers import get_llm_provider
 from app.application.retrieval_service import RetrievalService
-from app.services.tag_inference import infer_tag_from_text
 from app.core.logging import logger
 
 
@@ -49,7 +49,7 @@ class ChatService:
         """
         self._llm_provider = llm_provider or get_llm_provider()
         self._retrieval_service = retrieval_service or RetrievalService()
-        self._prompt_builder = prompt_builder or ConstructionLegalPromptBuilder()
+        self._prompt_builder = prompt_builder or RAGPromptBuilder()
         
         logger.debug("ChatService initialized with dependencies")
     
@@ -57,7 +57,7 @@ class ChatService:
         self,
         message: str,
         tag: Optional[str] = None,
-        top_k: int = 5
+        top_k: int = 8
     ) -> Dict[str, Any]:
         """
         Process a chat message with RAG.
@@ -78,8 +78,8 @@ class ChatService:
         """
         logger.info(f"Chat request: {message[:50]}...")
         
-        # 1. Infer tag if not provided
-        inferred_tag = tag or infer_tag_from_text(message)
+        # 1. Only use explicit tag. Query-time tag inference can over-filter retrieval.
+        inferred_tag = tag
         logger.debug(f"Using tag: {inferred_tag}")
         
         # 2. Handle wildcard in message
@@ -107,6 +107,7 @@ class ChatService:
         
         # 5. Generate answer using LLM (Adapter Pattern)
         answer = self._llm_provider.chat(messages)
+        answer = self._post_process_answer(message=message, context=context, answer=answer)
         logger.success(f"Generated response for: {message[:30]}...")
         
         return {
@@ -114,13 +115,64 @@ class ChatService:
             "inferred_tag": inferred_tag,
             "answer": answer
         }
+
+    def _post_process_answer(self, message: str, context: str, answer: str) -> str:
+        """
+        Apply lightweight deterministic fixes for high-value factual patterns.
+
+        Keeps generation natural while ensuring critical fields (like date next to
+        reference number) are not omitted when clearly present in retrieved context.
+        """
+        msg_lower = (message or "").lower()
+
+        if "reference number" in msg_lower:
+            has_date_in_answer = bool(re.search(r"\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b", answer or ""))
+            if not has_date_in_answer:
+                match = re.search(r"\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b", context or "")
+                if match:
+                    answer = f"{answer.rstrip()} Date: {match.group(0)}."
+
+        answer = self._replace_source_citations(answer=answer, context=context)
+
+        return answer
+
+    def _replace_source_citations(self, answer: str, context: str) -> str:
+        """Replace 'Source N' mentions with document filename/page labels."""
+        source_map: Dict[str, str] = {}
+
+        for line in (context or "").splitlines():
+            match = re.match(
+                r"\[Source\s+(\d+)\]\s+file=([^,\n]+)(?:,\s*page=([^\n]+))?",
+                line.strip(),
+            )
+            if not match:
+                continue
+
+            idx, raw_source, raw_page = match.group(1), match.group(2).strip(), match.group(3)
+            filename = raw_source.replace("\\", "/").split("/")[-1]
+            label = filename
+
+            page = (raw_page or "").strip()
+            if page and page.lower() != "none":
+                label = f"{label} p.{page}"
+
+            source_map[idx] = label
+
+        if not source_map:
+            return answer
+
+        def _source_repl(match: re.Match) -> str:
+            idx = match.group(1)
+            return source_map.get(idx, match.group(0))
+
+        return re.sub(r"\b[Ss]ource\s+(\d+)\b", _source_repl, answer)
     
     def chat_with_builder(
         self,
         message: str,
         builder: PromptBuilder,
         tag: Optional[str] = None,
-        top_k: int = 5
+        top_k: int = 8
     ) -> Dict[str, Any]:
         """
         Chat using a custom prompt builder.
@@ -138,8 +190,8 @@ class ChatService:
         """
         logger.info(f"Chat with custom builder: {message[:50]}...")
         
-        # Infer tag
-        inferred_tag = tag or infer_tag_from_text(message)
+        # Only use explicit tag to avoid accidental filtering.
+        inferred_tag = tag
         
         # Retrieve context
         context = self._retrieval_service.get_context(

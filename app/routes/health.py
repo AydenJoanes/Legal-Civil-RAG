@@ -7,20 +7,19 @@ from app.db.models import get_connection
 
 router = APIRouter()
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 
 def check_api_key() -> bool:
-    """Check if OpenRouter API key is valid by making a test request"""
-    if not OPENROUTER_API_KEY:
-        logger.warning("OPENROUTER_API_KEY not found in environment")
+    """Check if Gemini API key is valid by making a test request"""
+    if not GEMINI_API_KEY:
+        logger.warning("GEMINI_API_KEY not found in environment")
         return False
     
     try:
-        # Use OpenRouter's models endpoint to verify API key
+        # Use Gemini's models endpoint to verify API key
         response = requests.get(
-            "https://openrouter.ai/api/v1/models",
-            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+            f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}",
             timeout=5
         )
         is_valid = response.status_code == 200
@@ -53,7 +52,7 @@ def check_database() -> bool:
 def health_check():
     """
     Health check endpoint that verifies:
-    - OpenRouter API key is valid
+    - Gemini API key is valid
     - Database connection is working
     """
     api_status = "active" if check_api_key() else "inactive"

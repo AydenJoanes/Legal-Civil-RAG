@@ -25,7 +25,7 @@ chat_service = ChatService()
 def chat(
     message: str,
     tag: Optional[str] = None,
-    top_k: int = 5
+    top_k: int = 8
 ):
     """
     Process a chat message with RAG.
